@@ -1,0 +1,237 @@
+<html>
+<head>
+    <script>
+        
+    </script>
+    <style>
+        #jcanvas{
+            border: 2px solid;
+        }
+    </style>
+</head>
+<body>
+<canvas id="jcanvas" width="600" height="600"></canvas>
+<p id="status" style="display: inline; vertical-align:top;">hello</p>
+<p id="info" style="display: inline; vertical-align:top;"></p>
+<script>
+    function rand(a,b){
+        return Math.floor((Math.random() * b) + a);
+    }
+    function genMazeMat(m,n){
+        var visited = new Array(m);
+        var dirs = new Array(m);
+        for(var i=0;i<m;i++) {
+            visited[i]=new Array(n);
+            dirs[i] = new Array(n);
+        }
+        for(var i=0;i<m;i++)
+            for(var j=0;j<n;j++){
+                visited[i][j]=0;
+                dirs[i][j]=0;
+            }
+        var que = [[0,0]];
+        visited[0][0]=1;
+        while(que.length>0){
+            var cur;// = que.shift();
+            var i = rand(0,que.length);
+            cur = que.splice(i,1);
+            cur = cur[0];
+            var cand = [];
+            if(cur[0]-1>=0 && visited[cur[0]-1][cur[1]]==0) cand.push(0);//[cur[0]-1,cur[1]]); //top 1
+            if(cur[0]+1<m && visited[cur[0]+1][cur[1]]==0) cand.push(1);//[cur[0]+1,cur[1]]); //bot 2
+            if(cur[1]-1>=0 && visited[cur[0]][cur[1]-1]==0) cand.push(2);//[cur[0],cur[1]-1]); //left 4
+            if(cur[1]+1<n && visited[cur[0]][cur[1]+1]==0) cand.push(3);//[cur[0],cur[1]+1]); //right 8
+            if(cand.length==0) continue;
+            var idx = rand(0,cand.length);
+            // cur -> cand[idx]
+            dirs[cur[0]][cur[1]] += (1<<cand[idx]);
+            switch(cand[idx]){
+            case 0:
+                que.push([cur[0]-1,cur[1]]);
+                visited[cur[0]-1][cur[1]]=1;
+                dirs[cur[0]-1][cur[1]] += 2;
+                break;
+            case 1:
+                que.push([cur[0]+1,cur[1]]);
+                visited[cur[0]+1][cur[1]]=1;
+                dirs[cur[0]+1][cur[1]] += 1;
+                break;
+            case 2:
+                que.push([cur[0],cur[1]-1]);
+                visited[cur[0]][cur[1]-1]=1;
+                dirs[cur[0]][cur[1]-1] += 8;
+                break;
+            case 3:
+                que.push([cur[0],cur[1]+1]);
+                visited[cur[0]][cur[1]+1]=1;
+                dirs[cur[0]][cur[1]+1] += 4;
+                break;
+            default: break;
+            }
+            if(cand.length>1) que.push([cur[0],cur[1]]);
+        }
+        return dirs;
+    }
+    var mazeMat = genMazeMat(60,60);
+    
+    window.addEventListener("keydown", function(e) {
+        // space and arrow keys
+        if([32, 37, 38, 39, 40].indexOf(e.keyCode) > -1) {
+            e.preventDefault();
+        }
+    }, false);
+    var canvas = document.getElementById("jcanvas");
+    canvas.oncontextmenu = function(event){event.preventDefault(); }
+    var context = canvas.getContext("2d");
+    var you = {
+        last:[0,0],
+        pos:[0,0],
+        size:[10,10],
+        draw: function(){
+            var self = this;
+            self.ctx.beginPath();
+            self.ctx.fillStyle = 'black';
+            self.ctx.strokeStyle = 'black';
+            self.ctx.arc(self.last[0]+self.size[0]/2,self.last[1]+self.size[1]/2,self.size[0]>self.size[1]?self.size[1]/4:self.size[0]/4,
+                0,2*Math.PI);
+            self.ctx.fill();
+            self.ctx.stroke();
+            self.ctx.beginPath();
+            self.ctx.fillStyle = 'blue';
+            self.ctx.arc(self.pos[0]+self.size[0]/2,self.pos[1]+self.size[1]/2,self.size[0]>self.size[1]?self.size[1]/4:self.size[0]/4,
+                0,2*Math.PI);
+            self.ctx.fill();
+        },
+        moveDown: function(){
+            var self = this;
+            if( (self.mat[self.pos[1]/self.size[1]][self.pos[0]/self.size[0]] & 2) == 0 ) return;
+            self.last = self.pos.slice(0);
+            self.pos[1]=self.pos[1]+self.size[1];
+            self.fix();
+        },
+        moveUp: function(){
+            var self = this;
+            if( (self.mat[self.pos[1]/self.size[1]][self.pos[0]/self.size[0]] & 1) == 0 ) return;
+            self.last = self.pos.slice(0);
+            self.pos[1]=self.pos[1]-self.size[1];
+            self.fix();
+        },
+        moveLeft: function(){
+            var self = this;
+            if( (self.mat[self.pos[1]/self.size[1]][self.pos[0]/self.size[0]] & 4) == 0 ) return;
+            self.last = self.pos.slice(0);
+            self.pos[0]=self.pos[0]-self.size[0];
+            self.fix();
+        },
+        moveRight: function(){
+            var self = this;
+            if( (self.mat[self.pos[1]/self.size[1]][self.pos[0]/self.size[0]] & 8) == 0 ) return;
+            self.last = self.pos.slice(0);
+            self.pos[0]=self.pos[0]+self.size[0];
+            self.fix();
+        },
+        fix: function(){
+            var self = this;
+            if(self.pos[0]<0) self.pos[0]=0;
+            if(self.pos[0]>=self.ctx.canvas.width) self.pos[0]-=self.size[0];
+            if(self.pos[1]<0) self.pos[1]=0;
+            if(self.pos[1]>=self.ctx.canvas.height) self.pos[1]-=self.size[1];
+            
+        }
+    };
+    you.ctx = context;
+    you.mat = mazeMat;
+    function drawMaze(ctx,mat){
+        var siz=[10,10]; // siz[0] - xaxis, siz[1] - yaxis
+        var m = mat.length;
+        var n = mat[0].length;
+        var timer=0,tdif=10;
+        ctx.beginPath();
+        ctx.strokeStyle='red';
+        for(var i=0;i<m;i++) // y axis
+            for(var j=0;j<n;j++){ // x axis
+                for(var d=1;d<=8;d=d*2) // top, bot, left, right
+                    if( !(d & mat[i][j]) )
+                        switch(d){
+                        case 4:(function(){
+                            var j1=j;
+                            var i1=i;
+                            setTimeout(function(){
+                            ctx.moveTo(j1*siz[0],i1*siz[1]);
+                            ctx.lineTo(j1*siz[0],(i1+1)*siz[1]);
+                            ctx.stroke();
+                            },timer);})();
+                            timer+=tdif;
+                            break;
+                        case 8:(function(){
+                            var j1=j;
+                            var i1=i;
+                            setTimeout(function(){
+                            ctx.moveTo((j1+1)*siz[0],i1*siz[1]);
+                            ctx.lineTo((j1+1)*siz[0],(i1+1)*siz[1]);
+                            ctx.stroke();
+                            },timer);
+                            })();
+                            timer+=tdif;
+                            break;
+                        case 1:(function(){
+                            var j1=j;
+                            var i1=i;
+                            setTimeout(function(){
+                            ctx.moveTo(j1*siz[0],i1*siz[1]);
+                            ctx.lineTo((j1+1)*siz[0],i1*siz[1]);
+                            ctx.stroke();
+                            },timer);
+                            })();
+                            timer+=tdif;
+                            break;
+                        case 2:(function(){
+                            var j1=j;
+                            var i1=i;
+                            setTimeout(function(){
+                            ctx.moveTo(j1*siz[0],(i1+1)*siz[1]);
+                            ctx.lineTo((j1+1)*siz[0],(i1+1)*siz[1]);
+                            ctx.stroke();
+                            },timer);
+                            })();
+                            timer+=tdif;
+                            break;
+                        }
+            }
+        setTimeout(function(){window.dispatchEvent(new Event('postDrawMaze'));},timer);
+        return 100;
+    }
+    
+    
+    window.addEventListener("postDrawMaze",function(e){
+        you.draw();
+        window.addEventListener("keydown", function(e) {
+            var x = e.keyCode;
+            switch(x){
+            case 40:
+                you.moveDown();
+                break;
+            case 39:
+                you.moveRight();
+                break;
+            case 38:
+                you.moveUp();
+                break;
+            case 37:
+                you.moveLeft();
+                break;
+            default: break;
+            };
+            you.draw();
+            document.getElementById("info").innerHTML = you.pos[0]+"/"+ context.canvas.width + "," + you.pos[1] +"/" + context.canvas.height;
+        });
+    });
+    context.fillStyle = '#000000';
+    context.fillRect(0,0,600,600);
+    
+    //setTimeout( function() {drawMaze(context,mazeMat);},100);
+    drawMaze(context,mazeMat);
+    document.getElementById("status").innerHTML = tmp;
+</script>
+</body>
+</html>
